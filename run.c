@@ -6,9 +6,6 @@
 #include <time.h>
 #include <math.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -65,9 +62,7 @@ typedef struct {
     Config config; // the hyperparameters of the architecture (the blueprint)
     TransformerWeights weights; // the weights of the model
     RunState state; // buffers for the "wave" of activations in the forward pass
-    // some more state needed to properly clean up the memory mapping (sigh)
-    int fd; // file descriptor for memory mapping
-    float* data; // memory mapped data pointer
+    float* data; // allocated data pointer
     ssize_t file_size; // size of the checkpoint file in bytes
 } Transformer;
 
@@ -105,7 +100,8 @@ void free_run_state(RunState* s) {
     free(s->value_cache);
 }
 
-void memory_map_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weights) {
+// renamed function since mmap() is not used
+void setup_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weights) {
     int head_size = p->dim / p->n_heads;
     // make sure the multiplications below are done in 64bit to fit the parameter counts of 13B+ models
     unsigned long long n_layers = p->n_layers;
@@ -137,7 +133,7 @@ void memory_map_weights(TransformerWeights *w, Config* p, float* ptr, int shared
 }
 
 void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
-                     int* fd, float** data, ssize_t* file_size) {
+                     float** data, ssize_t* file_size) {
     FILE *file = fopen(checkpoint, "rb");
     if (!file) { fprintf(stderr, "Couldn't open file %s\n", checkpoint); exit(EXIT_FAILURE); }
     // read in the config header
@@ -145,30 +141,37 @@ void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weigh
     // negative vocab size is hacky way of signaling unshared weights. bit yikes.
     int shared_weights = config->vocab_size > 0 ? 1 : 0;
     config->vocab_size = abs(config->vocab_size);
-    // figure out the file size
+    // gather the file size
     fseek(file, 0, SEEK_END); // move file pointer to end of file
     *file_size = ftell(file); // get the file size, in bytes
+    fseek(file, 0, SEEK_SET); // move file pointer back to beginning
+
+    // allocate memory for the entire file
+    *data = malloc(*file_size);
+    if (*data == NULL) { fprintf(stderr, "malloc() failed!\n"); exit(EXIT_FAILURE); }
+
+    // read the entire file into memory
+    if (fread(*data, 1, *file_size, file) != *file_size) {
+        fprintf(stderr, "fread() failed!\n");
+        free(*data);
+        exit(EXIT_FAILURE);
+    }
     fclose(file);
-    // memory map the Transformer weights into the data pointer
-    *fd = open(checkpoint, O_RDONLY); // open in read only mode
-    if (*fd == -1) { fprintf(stderr, "open failed!\n"); exit(EXIT_FAILURE); }
-    *data = mmap(NULL, *file_size, PROT_READ, MAP_PRIVATE, *fd, 0);
-    if (*data == MAP_FAILED) { fprintf(stderr, "mmap failed!\n"); exit(EXIT_FAILURE); }
+
     float* weights_ptr = *data + sizeof(Config)/sizeof(float);
-    memory_map_weights(weights, config, weights_ptr, shared_weights);
+    setup_weights(weights, config, weights_ptr, shared_weights);
 }
 
 void build_transformer(Transformer *t, char* checkpoint_path) {
     // read in the Config and the Weights from the checkpoint
-    read_checkpoint(checkpoint_path, &t->config, &t->weights, &t->fd, &t->data, &t->file_size);
+    read_checkpoint(checkpoint_path, &t->config, &t->weights, &t->data, &t->file_size);
     // allocate the RunState buffers
     malloc_run_state(&t->state, &t->config);
 }
 
 void free_transformer(Transformer* t) {
-    // close the memory mapping
-    if (t->data != MAP_FAILED) { munmap(t->data, t->file_size); }
-    if (t->fd != -1) { close(t->fd); }
+    // free the memory
+    if (t->data != NULL) { free(t->data); }
     // free the RunState buffers
     free_run_state(&t->state);
 }
