@@ -59,10 +59,27 @@ testcc: tokenizer_data.h
 	$(CC) -DVERBOSITY=$(VERBOSITY) -O3 -o testc test.c -lm
 	./testc
 
+# embedded model builds - include both tokenizer and model data in the executable
+.PHONY: runembedded
+runembedded: run.c tokenizer_data.h stories15M_data.h
+	$(CC) -O3 -DEMBED_MODEL -o run run.c -lm
+
+.PHONY: runembeddedfast
+runembeddedfast: run.c tokenizer_data.h stories15M_data.h
+	$(CC) -Ofast -DEMBED_MODEL -o run run.c -lm
+
+.PHONY: runembeddedomp
+runembeddedomp: run.c tokenizer_data.h stories15M_data.h
+	$(CC) -Ofast -fopenmp -march=native -DEMBED_MODEL run.c -lm -o run
+
 # generate tokenizer data header file
 tokenizer_data.h: tokenizer.bin
 	xxd -i tokenizer.bin > tokenizer_data.h
 
+# generate model data header file
+stories15M_data.h: stories15M.bin
+	xxd -i stories15M.bin > stories15M_data.h
+
 .PHONY: clean
 clean:
-	rm -f run tokenizer_data.h
+	rm -f run tokenizer_data.h stories15M_data.h

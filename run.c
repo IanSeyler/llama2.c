@@ -7,8 +7,11 @@
 #include <math.h>
 #include <string.h>
 
-// xxd -i tokenizer.bin > tokenizer_data.h
 #include "tokenizer_data.h"
+
+#ifdef EMBED_MODEL
+#include "stories15M_data.h"
+#endif
 
 // ----------------------------------------------------------------------------
 // Transformer model
@@ -135,6 +138,30 @@ void setup_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weig
     w->wcls = shared_weights ? w->token_embedding_table : ptr;
 }
 
+#ifdef EMBED_MODEL
+void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
+                     float** data, ssize_t* file_size) {
+    // Use embedded model data
+    *file_size = stories15M_bin_len;
+
+    // allocate memory for the entire file
+    *data = malloc(*file_size);
+    if (*data == NULL) { fprintf(stderr, "malloc() failed!\n"); exit(EXIT_FAILURE); }
+
+    // copy embedded data to allocated memory
+    memcpy(*data, stories15M_bin, *file_size);
+
+    // read config from the beginning of the data
+    memcpy(config, *data, sizeof(Config));
+
+    // negative vocab size is hacky way of signaling unshared weights. bit yikes.
+    int shared_weights = config->vocab_size > 0 ? 1 : 0;
+    config->vocab_size = abs(config->vocab_size);
+
+    float* weights_ptr = *data + sizeof(Config)/sizeof(float);
+    setup_weights(weights, config, weights_ptr, shared_weights);
+}
+#else
 void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
                      float** data, ssize_t* file_size) {
     FILE *file = fopen(checkpoint, "rb");
@@ -164,13 +191,23 @@ void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weigh
     float* weights_ptr = *data + sizeof(Config)/sizeof(float);
     setup_weights(weights, config, weights_ptr, shared_weights);
 }
+#endif
 
+#ifdef EMBED_MODEL
+void build_transformer(Transformer *t) {
+    // read in the Config and the Weights from the embedded checkpoint
+    read_checkpoint(NULL, &t->config, &t->weights, &t->data, &t->file_size);
+    // allocate the RunState buffers
+    malloc_run_state(&t->state, &t->config);
+}
+#else
 void build_transformer(Transformer *t, char* checkpoint_path) {
     // read in the Config and the Weights from the checkpoint
     read_checkpoint(checkpoint_path, &t->config, &t->weights, &t->data, &t->file_size);
     // allocate the RunState buffers
     malloc_run_state(&t->state, &t->config);
 }
+#endif
 
 void free_transformer(Transformer* t) {
     // free the memory
@@ -905,6 +942,9 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
 #ifndef TESTING
 
 void error_usage() {
+#ifndef EMBED_MODEL
+    fprintf(stderr, "Usage:   run [options]\n");
+    fprintf(stderr, "Example: run -n 256 -i \"Once upon a time\"\n");
     fprintf(stderr, "Usage:   run <checkpoint> [options]\n");
     fprintf(stderr, "Example: run model.bin -n 256 -i \"Once upon a time\"\n");
     fprintf(stderr, "Options:\n");
@@ -916,12 +956,15 @@ void error_usage() {
     fprintf(stderr, "  -m <string> mode: generate|chat, default: generate\n");
     fprintf(stderr, "  -y <string> (optional) system prompt in chat mode\n");
     exit(EXIT_FAILURE);
+#endif
 }
 
 int main(int argc, char *argv[]) {
 
     // default parameters
+#ifndef EMBED_MODEL
     char *checkpoint_path = NULL;  // e.g. out/model.bin
+#endif
     float temperature = 1.0f;   // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float topp = 0.9f;          // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
     int steps = 256;            // number of steps to run for
@@ -930,6 +973,8 @@ int main(int argc, char *argv[]) {
     char *mode = "generate";    // generate|chat
     char *system_prompt = NULL; // the (optional) system prompt to use in chat mode
 
+    // Don't parse any arguments if we're embedding the model
+#ifndef EMBED_MODEL
     // poor man's C argparse so we can override the defaults above from the command line
     if (argc >= 2) { checkpoint_path = argv[1]; } else { error_usage(); }
     for (int i = 2; i < argc; i+=2) {
@@ -947,6 +992,7 @@ int main(int argc, char *argv[]) {
         else if (argv[i][1] == 'y') { system_prompt = argv[i + 1]; }
         else { error_usage(); }
     }
+#endif
 
     // parameter validation/overrides
     if (rng_seed <= 0) rng_seed = (unsigned int)time(NULL);
@@ -956,7 +1002,11 @@ int main(int argc, char *argv[]) {
 
     // build the Transformer via the model .bin file
     Transformer transformer;
+#ifdef EMBED_MODEL
+    build_transformer(&transformer);
+#else
     build_transformer(&transformer, checkpoint_path);
+#endif
     if (steps == 0 || steps > transformer.config.seq_len) steps = transformer.config.seq_len; // override to ~max length
 
     // build the Tokenizer using embedded data
