@@ -7,6 +7,9 @@
 #include <math.h>
 #include <string.h>
 
+// xxd -i tokenizer.bin > tokenizer_data.h
+#include "tokenizer_data.h"
+
 // ----------------------------------------------------------------------------
 // Transformer model
 
@@ -382,8 +385,8 @@ int compare_tokens(const void *a, const void *b) {
     return strcmp(((TokenIndex*)a)->str, ((TokenIndex*)b)->str);
 }
 
-void build_tokenizer(Tokenizer* t, char* tokenizer_path, int vocab_size) {
-    // i should have written the vocab_size into the tokenizer file... sigh
+void build_tokenizer(Tokenizer* t, int vocab_size) {
+    // Use embedded tokenizer data
     t->vocab_size = vocab_size;
     // malloc space to hold the scores and the strings
     t->vocab = (char**)malloc(vocab_size * sizeof(char*));
@@ -393,19 +396,32 @@ void build_tokenizer(Tokenizer* t, char* tokenizer_path, int vocab_size) {
         t->byte_pieces[i * 2] = (unsigned char)i;
         t->byte_pieces[i * 2 + 1] = '\0';
     }
-    // read in the file
-    FILE *file = fopen(tokenizer_path, "rb");
-    if (!file) { fprintf(stderr, "couldn't load %s\n", tokenizer_path); exit(EXIT_FAILURE); }
-    if (fread(&t->max_token_length, sizeof(int), 1, file) != 1) { fprintf(stderr, "failed read\n"); exit(EXIT_FAILURE); }
+
+    // Read from embedded data
+    const unsigned char* data = tokenizer_bin;
+    size_t offset = 0;
+
+    // Read max_token_length
+    memcpy(&t->max_token_length, data + offset, sizeof(int));
+    offset += sizeof(int);
+
+    // Read vocabulary
     int len;
     for (int i = 0; i < vocab_size; i++) {
-        if (fread(t->vocab_scores + i, sizeof(float), 1, file) != 1) { fprintf(stderr, "failed read\n"); exit(EXIT_FAILURE);}
-        if (fread(&len, sizeof(int), 1, file) != 1) { fprintf(stderr, "failed read\n"); exit(EXIT_FAILURE); }
+        // Read score
+        memcpy(t->vocab_scores + i, data + offset, sizeof(float));
+        offset += sizeof(float);
+
+        // Read string length
+        memcpy(&len, data + offset, sizeof(int));
+        offset += sizeof(int);
+
+        // Read string
         t->vocab[i] = (char *)malloc(len + 1);
-        if (fread(t->vocab[i], len, 1, file) != 1) { fprintf(stderr, "failed read\n"); exit(EXIT_FAILURE); }
-        t->vocab[i][len] = '\0'; // add the string terminating token
+        memcpy(t->vocab[i], data + offset, len);
+        t->vocab[i][len] = '\0';
+        offset += len;
     }
-    fclose(file);
 }
 
 void free_tokenizer(Tokenizer* t) {
@@ -897,7 +913,6 @@ void error_usage() {
     fprintf(stderr, "  -s <int>    random seed, default time(NULL)\n");
     fprintf(stderr, "  -n <int>    number of steps to run for, default 256. 0 = max_seq_len\n");
     fprintf(stderr, "  -i <string> input prompt\n");
-    fprintf(stderr, "  -z <string> optional path to custom tokenizer\n");
     fprintf(stderr, "  -m <string> mode: generate|chat, default: generate\n");
     fprintf(stderr, "  -y <string> (optional) system prompt in chat mode\n");
     exit(EXIT_FAILURE);
@@ -907,7 +922,6 @@ int main(int argc, char *argv[]) {
 
     // default parameters
     char *checkpoint_path = NULL;  // e.g. out/model.bin
-    char *tokenizer_path = "tokenizer.bin";
     float temperature = 1.0f;   // 0.0 = greedy deterministic. 1.0 = original. don't set higher
     float topp = 0.9f;          // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
     int steps = 256;            // number of steps to run for
@@ -929,7 +943,6 @@ int main(int argc, char *argv[]) {
         else if (argv[i][1] == 's') { rng_seed = atoi(argv[i + 1]); }
         else if (argv[i][1] == 'n') { steps = atoi(argv[i + 1]); }
         else if (argv[i][1] == 'i') { prompt = argv[i + 1]; }
-        else if (argv[i][1] == 'z') { tokenizer_path = argv[i + 1]; }
         else if (argv[i][1] == 'm') { mode = argv[i + 1]; }
         else if (argv[i][1] == 'y') { system_prompt = argv[i + 1]; }
         else { error_usage(); }
@@ -946,9 +959,9 @@ int main(int argc, char *argv[]) {
     build_transformer(&transformer, checkpoint_path);
     if (steps == 0 || steps > transformer.config.seq_len) steps = transformer.config.seq_len; // override to ~max length
 
-    // build the Tokenizer via the tokenizer .bin file
+    // build the Tokenizer using embedded data
     Tokenizer tokenizer;
-    build_tokenizer(&tokenizer, tokenizer_path, transformer.config.vocab_size);
+    build_tokenizer(&tokenizer, transformer.config.vocab_size);
 
     // build the Sampler
     Sampler sampler;
