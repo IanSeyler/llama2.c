@@ -62,7 +62,7 @@ typedef struct {
     Config config; // the hyperparameters of the architecture (the blueprint)
     TransformerWeights weights; // the weights of the model
     RunState state; // buffers for the "wave" of activations in the forward pass
-    float* data; // allocated data pointer
+    float* data; // memory data pointer
     ssize_t file_size; // size of the checkpoint file in bytes
 } Transformer;
 
