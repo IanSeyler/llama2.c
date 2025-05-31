@@ -6,6 +6,9 @@ Changes made:
 1) Remove the use of `mmap()` and the extra headers to go with it.
 2) Include tokenizer.bin and stories15M.bin as header files (gross). Thanks `xxd`!
 
+Instructions:
+Run `./setup.sh` to download the test LLM and then `make` to build everything.
+
 <p align="center">
   <img src="assets/llama_cute.jpg" width="300" height="300" alt="Cute Llama">
 </p>
