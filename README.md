@@ -6,8 +6,18 @@ Changes made:
 1) Remove the use of `mmap()` and the extra headers to go with it.
 2) Include tokenizer.bin and stories15M.bin as header files (gross). Thanks `xxd`!
 
-Instructions:
-Run `./setup.sh` to download the test LLM and then `make` to build everything.
+Instructions (Linux):
+
+1) Run `./setup.sh` to download the test LLM and then `make` to build everything.
+2) Run `./run` to run it
+
+Instructions (BareMetal):
+
+1) Build newlib4
+2) copy run.c, tokenizer.h, and stories15M.h to the newlib4 folder
+3) `gcc -I include -c run.c -o run.o -DEMBED_MODEL`
+4) `ld -T app.ld -o run lib/crt0.o run.o lib/libc.a lib/libm.a`
+4) `objcopy -O binary run run.app`
 
 <p align="center">
   <img src="assets/llama_cute.jpg" width="300" height="300" alt="Cute Llama">
