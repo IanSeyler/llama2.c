@@ -141,15 +141,11 @@ void setup_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weig
 #ifdef EMBED_MODEL
 void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
                      float** data, ssize_t* file_size) {
-    // Use embedded model data
+    // Use embedded model data. More like data_size for this version
     *file_size = stories15M_bin_len;
 
-    // allocate memory for the entire file
-    *data = malloc(*file_size);
-    if (*data == NULL) { fprintf(stderr, "malloc() failed!\n"); exit(EXIT_FAILURE); }
-
-    // copy embedded data to allocated memory
-    memcpy(*data, stories15M_bin, *file_size);
+    // We can skip the memory allocation in the file version and directly use the embedded data. Yay pointers!
+    *data = (float*)stories15M_bin;
 
     // read config from the beginning of the data
     memcpy(config, *data, sizeof(Config));
@@ -211,7 +207,9 @@ void build_transformer(Transformer *t, char* checkpoint_path) {
 
 void free_transformer(Transformer* t) {
     // free the memory
+#ifndef EMBED_MODEL
     if (t->data != NULL) { free(t->data); }
+#endif
     // free the RunState buffers
     free_run_state(&t->state);
 }
