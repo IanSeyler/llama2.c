@@ -18,6 +18,8 @@ Instructions (BareMetal):
 3) In the newlib4 folder run `baremetal.sh`
 4) Add the `llama2.app` file to BMFS
 
+## llama2.c
+
 <p align="center">
   <img src="assets/llama_cute.jpg" width="300" height="300" alt="Cute Llama">
 </p>
