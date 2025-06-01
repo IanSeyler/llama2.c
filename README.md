@@ -4,7 +4,7 @@ You can see the original repo [here](https://github.com/karpathy/llama2.c).
 
 Changes made:
 1) Remove the use of `mmap()` and the extra headers to go with it.
-2) Include tokenizer.bin and stories15M.bin as header files (gross). Thanks `xxd`!
+2) Include tokenizer.bin and stories15M.bin as header files (gross) instead of loading them from the filesystem. Thanks `xxd`!
 
 Instructions (Linux):
 
@@ -13,11 +13,10 @@ Instructions (Linux):
 
 Instructions (BareMetal):
 
-1) Build newlib4
-2) copy run.c, tokenizer.h, and stories15M.h to the newlib4 folder
-3) `gcc -I include -c run.c -o run.o -DEMBED_MODEL`
-4) `ld -T app.ld -o run lib/crt0.o run.o lib/libc.a lib/libm.a`
-4) `objcopy -O binary run run.app`
+1) Build [newlib4 for BareMetal](https://github.com/ReturnInfinity/BareMetal-newlib4)
+2) Copy `run.c`, `tokenizer.h`, `stories15M.h`, and `baremetal.sh` to the newlib4 folder
+3) In the newlib4 folder run `baremetal.sh`
+4) Add the `llama2.app` file to BMFS
 
 <p align="center">
   <img src="assets/llama_cute.jpg" width="300" height="300" alt="Cute Llama">
