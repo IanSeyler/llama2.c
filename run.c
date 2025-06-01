@@ -770,7 +770,9 @@ int sample(Sampler* sampler, float* logits) {
 long time_in_ms() {
     // return time in milliseconds, for benchmarking the model speed
     struct timespec time;
+#ifndef BAREMETAL
     clock_gettime(CLOCK_REALTIME, &time);
+#endif
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 
@@ -824,11 +826,13 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     }
     printf("\n");
 
+#ifndef BAREMETAL
     // report achieved tok/s (pos-1 because the timer starts after first iteration)
     if (pos > 1) {
         long end = time_in_ms();
         fprintf(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
     }
+#endif
 
     free(prompt_tokens);
 }
@@ -958,6 +962,9 @@ void error_usage() {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef BAREMETAL
+    printf("\n");               // BareMetal OS programs should output a newline on start
+#endif
 
     // default parameters
 #ifndef EMBED_MODEL
