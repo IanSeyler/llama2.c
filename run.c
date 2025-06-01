@@ -490,6 +490,13 @@ void safe_printf(char *piece) {
             return; // bad byte, don't print it
         }
     }
+#ifdef BAREMETAL
+    if (strncmp(piece, "<0x0A>", 6) == 0)
+    {
+        piece[0] = '\n';
+        piece[1] = '\0';
+    }
+#endif
     printf("%s", piece);
 }
 
@@ -824,9 +831,9 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         // init the timer here because the first iteration can be slower
         if (start == 0) { start = time_in_ms(); }
     }
+ #ifndef BAREMETAL
     printf("\n");
 
-#ifndef BAREMETAL
     // report achieved tok/s (pos-1 because the timer starts after first iteration)
     if (pos > 1) {
         long end = time_in_ms();
