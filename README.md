@@ -7,13 +7,16 @@
 You can see the original repo [here](https://github.com/karpathy/llama2.c).
 
 Changes made:
-1) Remove the use of `mmap()` and the extra headers to go with it.
-2) Include tokenizer.bin and stories15M.bin as header files (gross) instead of loading them from the filesystem. Thanks `xxd`!
+- Remove the use of `mmap()` and the extra headers to go with it.
+- Include tokenizer.bin and stories15M.bin as header files (gross) instead of loading them from the filesystem. Thanks `xxd`!
+
+Instructions:
+
+1) Run `./setup.sh` to download the test LLM and then `make` to build everything.
 
 Instructions (Linux):
 
-1) Run `./setup.sh` to download the test LLM and then `make` to build everything.
-2) Run `./run` to run it
+1) Run `./run` to run it
 
 Instructions (BareMetal):
 
@@ -21,6 +24,11 @@ Instructions (BareMetal):
 2) Copy `run.c`, `tokenizer.h`, `stories15M.h`, and `baremetal.sh` to the newlib4 folder
 3) In the newlib4 folder run `baremetal.sh`
 4) Add the `llama2.app` file to BMFS
+
+Todo list:
+
+- use `ld` to create the large binary instead of the header files created by `xdd`
+- multicore for BareMetal?
 
 ## llama2.c
 
