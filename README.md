@@ -1,5 +1,9 @@
 ## llama2.c - clone of Karpathy's llama2.c edited to work as an application on BareMetal OS
 
+<p align="center">
+  <img src="assets/BareMetal.png" alt="llama2 on BareMetal screenshot">
+</p>
+
 You can see the original repo [here](https://github.com/karpathy/llama2.c).
 
 Changes made:
