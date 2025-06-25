@@ -8,7 +8,7 @@ You can see the original repo [here](https://github.com/karpathy/llama2.c).
 
 Changes made:
 - Remove the use of `mmap()` and the extra headers to go with it.
-~~- Include tokenizer.bin and stories15M.bin as header files (gross) instead of loading them from the filesystem. Thanks `xxd`!~~
+- ~~Include tokenizer.bin and stories15M.bin as header files (gross) instead of loading them from the filesystem. Thanks `xxd`!~~
 - Convert stories15M.bin to .o via `ld`
 
 Instructions:
@@ -28,7 +28,7 @@ Instructions (BareMetal):
 
 Todo list:
 
-~~- use `ld` to create the large binary instead of the header files created by `xdd`~~
+- ~~use `ld` to create the large binary instead of the header files created by `xdd`~~
 - multicore for BareMetal?
 
 ## llama2.c
