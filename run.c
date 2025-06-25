@@ -10,7 +10,8 @@
 #include "tokenizer_data.h"
 
 #ifdef EMBED_MODEL
-#include "stories15M_data.h"
+extern unsigned char _binary_stories15M_bin_start[];
+extern unsigned char _binary_stories15M_bin_end[];
 #endif
 
 // ----------------------------------------------------------------------------
@@ -142,10 +143,10 @@ void setup_weights(TransformerWeights *w, Config* p, float* ptr, int shared_weig
 void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weights,
                      float** data, ssize_t* file_size) {
     // Use embedded model data. More like data_size for this version
-    *file_size = stories15M_bin_len;
+    *file_size = _binary_stories15M_bin_end - _binary_stories15M_bin_start;
 
     // We can skip the memory allocation in the file version and directly use the embedded data. Yay pointers!
-    *data = (float*)stories15M_bin;
+    *data = (float*)_binary_stories15M_bin_start;
 
     // read config from the beginning of the data
     memcpy(config, *data, sizeof(Config));
@@ -969,10 +970,6 @@ void error_usage() {
 }
 
 int main(int argc, char *argv[]) {
-#ifdef BAREMETAL
-    printf("\n");               // BareMetal OS programs should output a newline on start
-#endif
-
     // default parameters
 #ifndef EMBED_MODEL
     char *checkpoint_path = NULL;  // e.g. out/model.bin
