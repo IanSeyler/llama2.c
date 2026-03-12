@@ -22,7 +22,7 @@ Instructions (Linux):
 Instructions (BareMetal):
 
 1) Build [newlib4 for BareMetal](https://github.com/ReturnInfinity/BareMetal-newlib4)
-2) Copy `run.c`, `tokenizer.h`, `stories15M.o`, and `baremetal.sh` to the newlib4 folder
+2) Copy `run.c`, `tokenizer_data.h`, `stories15M.o`, and `baremetal.sh` to the newlib4 folder
 3) In the newlib4 folder run `baremetal.sh`
 4) Add the `llama2.app` file to BMFS
 
