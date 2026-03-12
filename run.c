@@ -778,9 +778,9 @@ int sample(Sampler* sampler, float* logits) {
 long time_in_ms() {
     // return time in milliseconds, for benchmarking the model speed
     struct timespec time;
-#ifndef BAREMETAL
+
     clock_gettime(CLOCK_REALTIME, &time);
-#endif
+
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 
@@ -832,7 +832,7 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         // init the timer here because the first iteration can be slower
         if (start == 0) { start = time_in_ms(); }
     }
- #ifndef BAREMETAL
+
     printf("\n");
 
     // report achieved tok/s (pos-1 because the timer starts after first iteration)
@@ -840,7 +840,6 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         long end = time_in_ms();
         fprintf(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
     }
-#endif
 
     free(prompt_tokens);
 }
